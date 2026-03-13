@@ -20,10 +20,11 @@ import requests
 
 class MedicalVocaApp:
     # --- [ 1. 설정 및 디자인 상수 ] ---
-    VERSION = "v1.2.5"
+    VERSION = "v1.2.4"
     REPO_URL = "https://api.github.com/repos/windy9478-coder/Yonsei-Medical-Quiz/releases/latest"
     DOWNLOAD_URL = "https://github.com/windy9478-coder/Yonsei-Medical-Quiz/releases"
     SECURITY_CODE = "yonseinursing"
+    CONTACT_EMAIL = "windy9478@gmail.com"
 
     COLOR_PRIMARY = "#003876"  # 연세 블루
     COLOR_POINT = "#FFD700"  # 골드
@@ -41,15 +42,13 @@ class MedicalVocaApp:
 
         # [맥북 최적화] 실행 즉시 포커스 강제 확보
         self.root.lift()
-        self.root.attributes('-topmost', True)
-        self.root.after(100, lambda: self.root.attributes('-topmost', False))
+        self.root.attributes("-topmost", True)
+        self.root.after(100, lambda: self.root.attributes("-topmost", False))
         self.root.focus_force()
 
-        # 리소스 및 시스템 설정
         self._setup_fonts()
         self._set_window_icon(self.root)
 
-        # 앱 상태 변수
         self.all_terms = []
         self.current_quiz = []
         self.wrong_answers = []
@@ -57,7 +56,6 @@ class MedicalVocaApp:
         self.score = 0
         self.auth_success = False
 
-        # 메인 컨테이너
         self.main_container = tk.Frame(self.root, bg=self.COLOR_PRIMARY)
         self.main_container.pack(fill="both", expand=True)
 
@@ -66,6 +64,7 @@ class MedicalVocaApp:
     # --- [ 2. 시스템 헬퍼 메서드 ] ---
 
     def resource_path(self, relative_path):
+        """ PyInstaller 빌드 후 리소스를 찾는 함수 (PyCharm 경고 해결) """
         base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
         return os.path.join(base_path, relative_path)
 
@@ -93,7 +92,8 @@ class MedicalVocaApp:
         if platform.system() == "Windows":
             try:
                 focus_w = self.root.focus_get()
-                if not focus_w: return
+                if not focus_w or not focus_w.winfo_exists(): return
+
                 hwnd = focus_w.winfo_id()
                 h_ime = ctypes.windll.imm32.ImmGetDefaultIMEWnd(hwnd)
                 status = 1 if mode == "kor" else 0
@@ -102,7 +102,7 @@ class MedicalVocaApp:
                 pass
 
     def _apply_ui_fixes(self, widget, mode="eng"):
-        """ 입력창 최적화 및 이중 IME 전환 신호 발송 """
+        """ 입력창 최적화 및 타이밍 안전장치 추가 """
         widget.config(exportselection=0, insertwidth=2)
 
         menu = tk.Menu(self.root, tearoff=0)
@@ -110,10 +110,11 @@ class MedicalVocaApp:
         widget.bind("<Button-3>", lambda e: menu.post(e.x_root, e.y_root))
         widget.bind("<Button-2>", lambda e: menu.post(e.x_root, e.y_root))
 
-        # 포커스 시 즉시 + 0.1초 후 이중으로 한/영 전환 신호 발송
         def force_ime():
-            self._set_ime_mode(mode)
-            widget.icursor(tk.END)
+            # [안전장치] 위젯이 아직 존재하는지 확인 후 실행 (TclError 방지)
+            if widget.winfo_exists():
+                self._set_ime_mode(mode)
+                widget.icursor(tk.END)
 
         widget.bind("<FocusIn>", lambda e: [force_ime(), self.root.after(100, force_ime)])
 
@@ -132,7 +133,7 @@ class MedicalVocaApp:
         except:
             return None
 
-    # --- [ 3. 초기 구동 (업데이트 & 보안) ] ---
+    # --- [ 3. 초기 구동 및 보안 ] ---
 
     def run_pre_checks(self):
         threading.Thread(target=self._check_for_updates, daemon=True).start()
@@ -175,7 +176,7 @@ class MedicalVocaApp:
                  fg=self.COLOR_POINT).pack()
 
         pw_entry = tk.Entry(auth_win, font=("Arial", 16), show="●", width=20, justify="center", bd=0)
-        pw_entry.pack(pady=20, ipady=5)
+        pw_entry.pack(pady=20, ipady=5);
         pw_entry.focus()
         self._apply_ui_fixes(pw_entry, mode="eng")
 
@@ -192,11 +193,11 @@ class MedicalVocaApp:
                   bg=self.COLOR_BTN, fg="white", padx=20, pady=5, relief="flat", cursor="hand2").pack(pady=10)
 
         auth_win.protocol("WM_DELETE_WINDOW", lambda: [auth_win.grab_release(), auth_win.destroy()])
-        auth_win.bind('<Return>', lambda e: validate())
+        auth_win.bind("<Return>", lambda e: validate())
         self.root.wait_window(auth_win)
         return self.auth_success
 
-    # --- [ 4. 화면 UI 로직 ] ---
+    # --- [ 4. 화면 레이아웃 ] ---
 
     def clear_screen(self):
         for widget in self.main_container.winfo_children(): widget.destroy()
@@ -212,12 +213,21 @@ class MedicalVocaApp:
         self.clear_screen()
         tk.Label(self.main_container, text="🩺 의학용어 암기 마스터", font=self.font_title, bg=self.COLOR_PRIMARY,
                  fg=self.COLOR_POINT).pack(pady=(60, 20))
-        tk.Label(self.main_container, text="안녕하세요! 연세대학교 간호학과 학우 여러분.\n의학용어 암기를 돕기 위한 프로그램입니다.",
-                 font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT, justify="center").pack(pady=10)
+
+        welcome_info = "안녕하세요! 연세대학교 간호학과 학우 여러분.\n의학용어 및 약어 암기를 돕기 위해 제작된 프로그램입니다.\n 자유롭게 공유 가능하오니 편하게 사용해주세요."
+        tk.Label(self.main_container, text=welcome_info, font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT,
+                 justify="center").pack(pady=10)
+
+        dev_info = f"제작자: 22학번 정인호 | 문의: {self.CONTACT_EMAIL}"
+        tk.Label(self.main_container, text=dev_info, font=self.font_desc, bg=self.COLOR_PRIMARY,
+                 fg=self.COLOR_POINT).pack(pady=10)
 
         tk.Button(self.main_container, text="START 🚀", command=self.show_setup_screen,
                   font=("Malgun Gothic", 16, "bold"),
                   bg=self.COLOR_BTN, fg=self.COLOR_TEXT, padx=50, pady=10).pack(pady=30)
+
+        tk.Button(self.main_container, text="ℹ️ 프로그램 정보", command=self.show_about_info, font=self.font_desc,
+                  bg=self.COLOR_PRIMARY, fg=self.COLOR_SUBTEXT, relief="flat", cursor="hand2").pack()
         self._add_footer_logo()
 
     def show_setup_screen(self):
@@ -225,12 +235,13 @@ class MedicalVocaApp:
         tk.Label(self.main_container, text="📂 퀴즈 설정", font=self.font_title, bg=self.COLOR_PRIMARY,
                  fg=self.COLOR_POINT).pack(pady=30)
 
-        # [복구] CSV 등록 안내문
+        # [안내문] CSV 등록 가이드
         guide_f = tk.LabelFrame(self.main_container, text="[ CSV 파일 등록 방법 ]", font=self.font_main,
                                 bg=self.COLOR_PRIMARY, fg=self.COLOR_POINT, padx=20, pady=15)
         guide_f.pack(pady=10, padx=40, fill="x")
-        tk.Label(guide_f, text="1. 엑셀: [A:약어 / B:Full Term / C:한글뜻]\n2. 저장: 'CSV UTF-8 (쉼표로 분리)'\n3. 아래 버튼을 클릭하여 파일 선택",
-                 font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT, justify="left").pack()
+        guide_text = "1. 엑셀: [A:약어 / B:Full Term / C:한글뜻] 입력\n2. 저장: 'CSV UTF-8 (쉼표로 분리)' 형식 권장\n3. 아래 버튼을 클릭하여 파일 선택"
+        tk.Label(guide_f, text=guide_text, font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT,
+                 justify="left").pack()
 
         self.btn_csv = tk.Button(self.main_container, text="1. 의학용어 CSV 파일 선택", command=self.load_data,
                                  font=self.font_main, bg="#E1E1E1", padx=20)
@@ -252,10 +263,7 @@ class MedicalVocaApp:
 
     def show_quiz_screen(self):
         self.clear_screen()
-        self.current_index = 0;
-        self.score = 0;
-        self.wrong_answers = []
-
+        self.current_index, self.score, self.wrong_answers = 0, 0, []
         self.prog_lbl = tk.Label(self.main_container, font=self.font_main, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT);
         self.prog_lbl.pack(pady=20)
         self.abbr_lbl = tk.Label(self.main_container, font=self.font_voca, bg=self.COLOR_PRIMARY, fg=self.COLOR_POINT);
@@ -263,8 +271,6 @@ class MedicalVocaApp:
 
         f_node = tk.Frame(self.main_container, bg=self.COLOR_PRIMARY);
         f_node.pack(pady=20)
-
-        # Full Term (영어)
         tk.Label(f_node, text="Full Term:", font=self.font_main, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT).grid(row=0,
                                                                                                                  column=0,
                                                                                                                  pady=10,
@@ -273,7 +279,6 @@ class MedicalVocaApp:
         self.ent_f.grid(row=0, column=1, padx=10, ipady=8)
         self._apply_ui_fixes(self.ent_f, mode="eng")
 
-        # 한글 뜻 (한국어)
         tk.Label(f_node, text="한글 뜻:", font=self.font_main, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT).grid(row=1,
                                                                                                             column=0,
                                                                                                             pady=10,
@@ -282,9 +287,8 @@ class MedicalVocaApp:
         self.ent_m.grid(row=1, column=1, padx=10, ipady=8)
         self._apply_ui_fixes(self.ent_m, mode="kor")
 
-        # Full Term에서 엔터 칠 때, IME를 한국어로 즉시 강제 전환하고 포커스 이동
-        self.ent_f.bind('<Return>', lambda e: [self._set_ime_mode("kor"), self.ent_m.focus_set()])
-        self.ent_m.bind('<Return>', lambda e: self.check_answer())
+        self.ent_f.bind("<Return>", lambda e: [self._set_ime_mode("kor"), self.ent_m.focus_set()])
+        self.ent_m.bind("<Return>", lambda e: self.check_answer())
 
         tk.Button(self.main_container, text="정답 제출 (Enter)", command=self.check_answer, bg=self.COLOR_BTN,
                   fg=self.COLOR_TEXT, font=self.font_main, padx=30).pack(pady=20)
@@ -292,7 +296,6 @@ class MedicalVocaApp:
                   font=self.font_desc).pack()
         self.res_lbl = tk.Label(self.main_container, font=self.font_main, bg=self.COLOR_PRIMARY);
         self.res_lbl.pack(pady=10)
-
         self.show_next_question()
 
     # --- [ 5. 비즈니스 로직 ] ---
@@ -301,41 +304,42 @@ class MedicalVocaApp:
         f_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
         if not f_path: return
         self.all_terms = []
-        for enc in ['utf-8-sig', 'cp949', 'euc-kr', 'utf-8']:
+        for enc in ["utf-8-sig", "cp949", "euc-kr", "utf-8"]:
             try:
-                with open(f_path, 'r', encoding=enc, errors='replace') as f:
+                with open(f_path, "r", encoding=enc, errors="replace") as f:
                     self.all_terms = [[c.strip() for c in r] for r in csv.reader(f) if r and len(r) >= 3]
-                if self.all_terms:
-                    self.file_label.config(text=f"✅ {os.path.basename(f_path)}", fg=self.COLOR_POINT)
-                    return
+                if self.all_terms: self.file_label.config(text=f"✅ {os.path.basename(f_path)}",
+                                                          fg=self.COLOR_POINT); return
             except:
                 continue
         messagebox.showerror("오류", "파일 로드 실패")
 
     def prepare_quiz(self):
-        if not self.all_terms: return
         try:
             num = min(int(self.cnt_entry.get().strip()), len(self.all_terms))
-            self.current_quiz = random.sample(self.all_terms, num)
+            self.current_quiz = random.sample(self.all_terms, num);
             self.show_quiz_screen()
         except:
-            pass
+            messagebox.showerror("오류", "문제 수에 숫자를 입력하세요.")
 
     def show_next_question(self):
-        self.ent_f.delete(0, tk.END);
-        self.ent_m.delete(0, tk.END);
-        self.res_lbl.config(text="")
+        # [안전장치] 입력창이 존재하는 경우에만 초기화 진행
+        if hasattr(self, 'ent_f') and self.ent_f.winfo_exists():
+            self.ent_f.delete(0, tk.END);
+            self.ent_m.delete(0, tk.END);
+            self.res_lbl.config(text="")
 
-        def init_eng():
-            self.ent_f.focus_set()
-            self._set_ime_mode("eng")
+            def init_eng():
+                if self.ent_f.winfo_exists():
+                    self.ent_f.focus_set()
+                    self._set_ime_mode("eng")
 
-        self.root.after(50, init_eng)
-        self.root.after(150, init_eng)  # 이중 확인사살
+            self.root.after(50, init_eng)
+            self.root.after(150, init_eng)
 
         if self.current_index < len(self.current_quiz):
             a, _, _ = self.current_quiz[self.current_index]
-            self.prog_lbl.config(text=f"Q {self.current_index + 1} / {len(self.current_quiz)}")
+            self.prog_lbl.config(text=f"Q {self.current_index + 1} / {len(self.current_quiz)}");
             self.abbr_lbl.config(text=a)
         else:
             self.show_summary_screen()
@@ -345,34 +349,25 @@ class MedicalVocaApp:
         u_f, u_m = self.ent_f.get().strip().lower(), self.ent_m.get().strip()
         a, c_f, c_m = self.current_quiz[self.current_index]
         if u_f == c_f.lower() and u_m == c_m:
-            self.score += 1;
-            self.res_lbl.config(text="정답! ✅", fg=self.COLOR_CORRECT)
+            self.score += 1; self.res_lbl.config(text="정답! ✅", fg=self.COLOR_CORRECT)
         else:
-            self.res_lbl.config(text=f"오답! 정답: {c_f} / {c_m}", fg=self.COLOR_WRONG)
-            self.wrong_answers.append([a, c_f, c_m])
-        self.current_index += 1
+            self.res_lbl.config(text=f"오답! 정답: {c_f} / {c_m}", fg=self.COLOR_WRONG); self.wrong_answers.append(
+                [a, c_f, c_m])
+        self.current_index += 1;
         self.root.after(1000, self.show_next_question)
 
     def show_summary_screen(self, early=False):
-        self.clear_screen()
+        self.clear_screen();
         total = self.current_index if early else len(self.current_quiz)
-        tk.Label(self.main_container, text="📊 테스트 요약", font=self.font_title, bg=self.COLOR_PRIMARY,
+        tk.Label(self.main_container, text=f"📊 결과: {self.score} / {total}", font=self.font_title, bg=self.COLOR_PRIMARY,
                  fg=self.COLOR_POINT).pack(pady=20)
-        tk.Label(self.main_container, text=f"맞힌 개수: {self.score} / {total}", font=self.font_main, bg=self.COLOR_PRIMARY,
-                 fg=self.COLOR_TEXT).pack()
         if self.wrong_answers:
-            tk.Label(self.main_container, text="[ 오답 리스트 ]", font=self.font_main, bg=self.COLOR_PRIMARY,
-                     fg=self.COLOR_WRONG).pack(pady=(20, 5))
-            t = scrolledtext.ScrolledText(self.main_container, width=70, height=12, font=self.font_desc)
-            t.pack(pady=10);
-            [t.insert(tk.END, f"• {a}: {f} ({m})\n") for a, f, m in self.wrong_answers]
+            t = scrolledtext.ScrolledText(self.main_container, width=70, height=12, font=self.font_desc);
+            t.pack(pady=10)
+            for a, f, m in self.wrong_answers: t.insert(tk.END, f"• {a}: {f} ({m})\n")
             t.config(state="disabled")
-        f_b = tk.Frame(self.main_container, bg=self.COLOR_PRIMARY);
-        f_b.pack(pady=20)
-        tk.Button(f_b, text="새 퀴즈", command=self.show_setup_screen, bg=self.COLOR_BTN, fg="white",
-                  font=self.font_main).grid(row=0, column=0, padx=10)
-        tk.Button(f_b, text="처음으로", command=self.show_welcome_screen, bg="#696969", fg="white",
-                  font=self.font_main).grid(row=0, column=1, padx=10)
+        tk.Button(self.main_container, text="처음으로", command=self.show_welcome_screen, bg="#696969", fg="white",
+                  font=self.font_main).pack(pady=20)
 
     def retry_wrong(self):
         self.current_quiz = self.wrong_answers[:]; random.shuffle(self.current_quiz); self.show_quiz_screen()
@@ -383,21 +378,22 @@ class MedicalVocaApp:
     def show_about_info(self):
         w = tk.Toplevel(self.root);
         w.title("About");
-        w.geometry("400x450");
+        w.geometry("400x500");
         w.configure(bg=self.COLOR_PRIMARY);
         self._set_window_icon(w)
-        info = f"연세 간호 의학용어 마스터\nVersion {self.VERSION}\n\nDeveloper: 22학번 정인호\nwindy9478@gmail.com"
-        tk.Label(w, text=info, font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT).pack(pady=50)
+        tk.Label(w, text="🩺", font=("Arial", 50), bg=self.COLOR_PRIMARY).pack(pady=20)
+        info = f"연세 간호 의학용어 마스터\nVersion {self.VERSION}\n\nDeveloper: 22학번 정인호\nContact: {self.CONTACT_EMAIL}\n\n오류 발생 시 위 메일로\n문의 부탁드립니다."
+        tk.Label(w, text=info, font=self.font_desc, bg=self.COLOR_PRIMARY, fg=self.COLOR_TEXT).pack(pady=20)
         tk.Button(w, text="닫기", command=w.destroy, bg=self.COLOR_BTN, fg="white", padx=20).pack()
 
 
 if __name__ == "__main__":
     if platform.system() == "Windows":
         try:
-            getattr(ctypes.windll.shell32, 'SetCurrentProcessExplicitAppUserModelID')('yonsei.nursing.quiz.1.2.4')
+            shell32 = getattr(ctypes.windll, "shell32")
+            shell32.SetCurrentProcessExplicitAppUserModelID("yonsei.nursing.quiz.1.2.4")
         except:
             pass
-    root = tk.Tk()
-    app = MedicalVocaApp(root)
+    root = tk.Tk();
+    app = MedicalVocaApp(root);
     root.mainloop()
-
