@@ -16,7 +16,7 @@ import requests # 터미널에서 pip install requests 필요
 class MedicalVocaApp:
     def __init__(self, root):
         self.root = root
-        self.current_version = "v1.1.0"  # 현재 프로그램 버전
+        self.current_version = "v1.2.0"  # 현재 프로그램 버전
 
         # 1. 보안코드 확인 전 업데이트부터 체크!
         self.check_for_updates()
@@ -423,4 +423,5 @@ class MedicalVocaApp:
 if __name__ == "__main__":
     root = tk.Tk()
     app = MedicalVocaApp(root)
+
     root.mainloop()
