@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pyinstaller --noconfirm --onefile --windowed --icon "icon.ico" "Voca.py"
+        pyinstaller --onefile --windowed --icon=icon.ico Voca.py
 
   # 5. 실행 파일 만들기 (맥용 이름 및 터미널 숨김 설정 추가)
       - name: Build with PyInstaller
