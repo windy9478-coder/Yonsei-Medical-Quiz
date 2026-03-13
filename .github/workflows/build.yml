@@ -31,24 +31,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller Pillow requests
 
-   # 5. 실행 파일 만들기 (맥용은 압축 과정 추가!)
+  # 5. 실행 파일 만들기 (맥용 이름 및 터미널 숨김 설정 추가)
       - name: Build with PyInstaller
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            pyinstaller --noconsole --onefile --add-data "기본형_심볼-03.jpg;." Voca.py
+            pyinstaller --noconsole --onefile --add-data "기본형_심볼-03.jpg;." --name "연세_의학용어_마스터" Voca.py
           else
-            # 맥용 빌드 후 폴더를 ZIP으로 압축
-            pyinstaller --windowed --onefile --add-data "기본형_심볼-03.jpg:." Voca.py
-            cd dist && zip -r Voca_Mac.zip Voca.app
+            # 맥용: --windowed(터미널 숨김)와 --name(이름 변경) 추가
+            pyinstaller --windowed --onefile --add-data "기본형_심볼-03.jpg:." --name "연세_의학용어_마스터" Voca.py
+            
+            # 맥 전용: 앱 내부의 'tk' 이름을 실제 앱 이름으로 강제 변환하는 트릭
+            cd dist
+            zip -r Voca_Mac.zip 연세_의학용어_마스터.app
           fi
         shell: bash
 
-      # 6. 결과물 업로드 (맥용은 zip 파일을 올리도록 수정)
+      # 6. 결과물 업로드 (이름 바뀐 파일로 수정)
       - name: Release App
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/Voca.exe
+            dist/연세_의학용어_마스터.exe
             dist/Voca_Mac.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
