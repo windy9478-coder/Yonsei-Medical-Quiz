@@ -20,7 +20,7 @@ import requests
 
 class MedicalVocaApp:
     # --- [ 1. 설정 및 디자인 상수 ] ---
-    VERSION = "v1.2.4"
+    VERSION = "v1.2.5"
     REPO_URL = "https://api.github.com/repos/windy9478-coder/Yonsei-Medical-Quiz/releases/latest"
     DOWNLOAD_URL = "https://github.com/windy9478-coder/Yonsei-Medical-Quiz/releases"
     SECURITY_CODE = "yonseinursing"
@@ -400,3 +400,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = MedicalVocaApp(root)
     root.mainloop()
+
