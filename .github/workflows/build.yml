@@ -2,7 +2,7 @@ name: Build and Release Quiz App
 
 on:
   push:
-    branches: [ main ]  # 태그 필요 없음! 메인에 코드만 올라오면 바로 빌드 시작
+    branches: [ main ]
 
 permissions:
   contents: write
@@ -51,9 +51,10 @@ jobs:
       - name: Release App
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "latest-build"  # 항상 같은 이름으로 덮어씌움
+          tag_name: "latest-build"
           files: |
             dist/연세_의학용어_마스터.exe
             dist/Voca_Mac.zip
+          overwrite: true # [핵심] 기존 파일을 지우고 새 빌드 파일로 덮어씌웁니다.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
