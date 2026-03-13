@@ -3,9 +3,8 @@ name: Build and Release Quiz App
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # v1.2.4 처럼 태그를 푸시할 때만 작동
 
-# 이 권한 설정이 핵심이야!
 permissions:
   contents: write
 
@@ -19,36 +18,47 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # v3 -> v4로 업데이트
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5 # v4 -> v5로 업데이트
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
+      # [필수] 서버에 필요한 라이브러리 설치
       - name: Install dependencies
         run: |
-        pyinstaller --onefile --windowed --icon=icon.ico Voca.py
+          python -m pip install --upgrade pip
+          pip install requests Pillow pyinstaller
 
-  # 5. 실행 파일 만들기 (맥용 이름 및 터미널 숨김 설정 추가)
+      # [필수] OS별 빌드 (아이콘 및 로고 포함)
       - name: Build with PyInstaller
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            pyinstaller --noconsole --onefile --add-data "기본형_심볼-03.jpg;." --name "연세_의학용어_마스터" Voca.py
+            # 윈도우용 세팅
+            pyinstaller --noconsole --onefile \
+            --icon="icon.ico" \
+            --add-data "기본형_심볼-03.jpg;." \
+            --add-data "icon.ico;." \
+            --name "연세_의학용어_마스터" Voca.py
           else
-            # 맥용: --windowed(터미널 숨김)와 --name(이름 변경) 추가
-            pyinstaller --windowed --onefile --add-data "기본형_심볼-03.jpg:." --name "연세_의학용어_마스터" Voca.py
-            
-            # 맥 전용: 앱 내부의 'tk' 이름을 실제 앱 이름으로 강제 변환하는 트릭
+            # 맥용 세팅
+            pyinstaller --windowed --onefile \
+            --icon="icon.ico" \
+            --add-data "기본형_심볼-03.jpg:." \
+            --add-data "icon.ico:." \
+            --name "연세_의학용어_마스터" Voca.py
             cd dist
             zip -r Voca_Mac.zip 연세_의학용어_마스터.app
           fi
-        shell: bash
 
-      # 6. 결과물 업로드 (이름 바뀐 파일로 수정)
+      # [배포] 만들어진 파일을 깃허브 Release 페이지에 업로드
       - name: Release App
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/연세_의학용어_마스터.exe
             dist/Voca_Mac.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
