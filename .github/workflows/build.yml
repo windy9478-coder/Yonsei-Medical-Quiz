@@ -31,20 +31,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller Pillow requests
 
+   # 5. 실행 파일 만들기 (맥용은 압축 과정 추가!)
       - name: Build with PyInstaller
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             pyinstaller --noconsole --onefile --add-data "기본형_심볼-03.jpg;." Voca.py
           else
+            # 맥용 빌드 후 폴더를 ZIP으로 압축
             pyinstaller --windowed --onefile --add-data "기본형_심볼-03.jpg:." Voca.py
+            cd dist && zip -r Voca_Mac.zip Voca.app
           fi
         shell: bash
 
+      # 6. 결과물 업로드 (맥용은 zip 파일을 올리도록 수정)
       - name: Release App
-        uses: softprops/action-gh-release@v2 # v1 -> v2로 업데이트
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/Voca.exe
-            dist/Voca.app
+            dist/Voca_Mac.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
