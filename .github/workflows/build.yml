@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, macos-latest]
-
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -28,6 +27,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests Pillow pyinstaller
+
+      # [중요] 기존의 중복된 배포본이 있다면 먼저 삭제해서 충돌 방지
+      - name: Delete old release
+        uses: dev-drprasad/delete-tag-and-release@v1.1.0
+        with:
+          tag_name: latest-build
+          delete_release: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true # 처음 빌드할 때는 삭제할 게 없으니 에러 무시
 
       - name: Build with PyInstaller
         shell: bash
@@ -48,13 +56,13 @@ jobs:
             zip -r Voca_Mac.zip 연세_의학용어_마스터.app
           fi
 
-      - name: Release App
+      - name: Create New Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "latest-build"
+          tag_name: latest-build
+          name: "Latest Medical Quiz Build"
           files: |
             dist/연세_의학용어_마스터.exe
             dist/Voca_Mac.zip
-          overwrite: true # [핵심] 기존 파일을 지우고 새 빌드 파일로 덮어씌웁니다.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
