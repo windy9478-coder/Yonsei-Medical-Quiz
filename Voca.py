@@ -29,11 +29,37 @@ class MedicalVocaApp:
     COLOR_CORRECT = "#00FF7F"
     COLOR_WRONG = "#FF6347"
 
+    def resource_path(self, relative_path):
+        """ 실행 파일 내 임시 폴더에서 리소스 경로를 찾는 함수 """
+        import sys
+        try:
+            # PyInstaller에 의해 생성된 임시 폴더 경로 (_MEIPASS)
+            base_path = sys._MEIPASS
+        except Exception:
+            # 일반 파이썬 실행 시 현재 경로
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
+
     def __init__(self, root):
         self.root = root
         self.root.title("연세대 간호학과 의학약어 퀴즈")
         self.root.geometry("800x900")
         self.root.configure(bg=self.COLOR_PRIMARY)
+        #이미지 경로 찾아서 창 아이콘 설정
+        try:
+            icon_path = self.resource_path("icon.ico")
+            if os.path.exists(icon_path):
+                # 1. 제목 표시줄용 (전통적 방식)
+                self.root.iconbitmap(icon_path)
+
+                # 2. 작업표시줄 및 전체 시스템용 (이미지 객체 활용)
+                from PIL import Image, ImageTk
+                icon_img = Image.open(icon_path)
+                icon_photo = ImageTk.PhotoImage(icon_img)
+                # default=True로 설정하면 이후 생성되는 모든 서브창(Toplevel)에도 적용됩니다!
+                self.root.iconphoto(True, icon_photo)
+        except Exception as e:
+            print(f"아이콘 로드 실패: {e}")
 
         # 상태 변수 초기화
         self.all_terms = []
@@ -101,7 +127,12 @@ class MedicalVocaApp:
         auth_win.resizable(False, False)
         auth_win.transient(self.root)
         auth_win.grab_set()
-
+        try:
+            icon_path = self.resource_path("icon.ico")
+            if os.path.exists(icon_path):
+                auth_win.iconbitmap(icon_path)
+        except:
+            pass
         # 보안 UI 구성
         self._build_auth_ui(auth_win)
 
@@ -425,6 +456,18 @@ class MedicalVocaApp:
 
 
 if __name__ == "__main__":
+    import ctypes
+    import platform
+
+    # 윈도우 환경에서만 실행되도록 설정
+    if platform.system() == "Windows":
+        try:
+            # 내 프로그램만의 고유 ID를 부여 (회사명.제품명.버전 등 자유롭게)
+            myappid = 'yonsei.nursing.medicalvoca.1.2.4'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception as e:
+            print(f"작업표시줄 설정 실패: {e}")
+
     root = tk.Tk()
     app = MedicalVocaApp(root)
     root.mainloop()
