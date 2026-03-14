@@ -5,19 +5,23 @@ import requests
 import webbrowser
 from PIL import Image
 import time
+import streamlit as st
+import streamlit_analytics
+
 
 # ==========================================================
 # [Copyright & About]
 # Copyright (c) 2026 Inho Jung (windy9478-coder). All rights reserved.
 # ==========================================================
 
-CURRENT_VERSION = "v1.1.2"  # 오답 다시 풀기 기능 추가
+CURRENT_VERSION = "v1.1.3"  # 대시보드 생성
 
 # 1. 페이지 설정
 st.set_page_config(page_title="연세 간호 의학용어 테스트", page_icon="🩺", layout="centered")
 
 # 2. 커스텀 CSS
-st.markdown("""
+with streamlit_analytics.track():
+    st.markdown("""
     <style>
     .stApp { background-color: #003876; }
     h1, h2, h3, p, label, .stMarkdown { color: white !important; }
