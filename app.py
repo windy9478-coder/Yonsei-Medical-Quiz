@@ -6,7 +6,7 @@ import webbrowser
 from PIL import Image
 import time
 import streamlit as st
-import streamlit_analytics
+import streamlit_analytics2 as streamlit_analytics
 
 # ==========================================================
 # [Copyright & About]
