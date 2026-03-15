@@ -23,7 +23,7 @@ st.set_page_config(page_title="연세 간호 의학용어 테스트", page_icon=
 def normalize_text(text):
     """공백, -, / 등 특수문자를 제거하고 소문자로 변환"""
     if pd.isna(text): return ""
-    # 괄호 안의 내용도 정답으로 인정하기 위해 미리 처리할 수 있게 원본도 유지하되, 
+    # 괄호 안의 내용도 정답으로 인정하기 위해 미리 처리할 수 있게 원본도 유지하되,
     # 기본적으로는 특수문자 제거 버전 반환
     res = str(text).replace(" ", "").replace("-", "").replace("/", "").lower()
     return res
@@ -162,9 +162,13 @@ with streamlit_analytics.track():
         st.subheader("📂 퀴즈 설정")
         with st.expander("📋 CSV 파일 작성 가이드 (필독)", expanded=True):
             st.markdown("""
-                    1. **엑셀 구성**: [A열: 약어] | [B열: Full Term] | [C열: 한글 뜻]
-                    2. **팁**: 한글 뜻에 `단주친목(단주자조모임)`처럼 쓰면 둘 다 정답으로 처리됩니다.
-                    """)
+>>                     학우분들이 직접 만든 단어장으로 공부할 수 있습니다! 아래 **예시 화면**처럼 파일을 구성해 주세요.
+>>                     1. **엑셀 구성**: [A열: 약어] | [B열: Full Term] | [C열: 한글 뜻] 1행부터 단어 써주세요.
+>>                     2. **일반 의학용어 퀴즈**: 약어 퀴즈가 아닌 일반 영단어 퀴즈를 보고 싶다면 **A열을 비우고** B열에 영어, C열에 한글을 적어주세요.
+>>                     3. **저장 방식**: [다른 이름으로 저장] → 파일 형식을 **'CSV (쉼표로 분리)(*.csv)'**로 선택
+>>                     4. **주의**: 한글 깨짐 방지를 위해 가급적 **'CSV UTF-8'** 형식을 사용해 주세요.
+>>                     """)
+            
             try:
                 st.image(Image.open("csv_example.png"), use_container_width=True)
             except:
