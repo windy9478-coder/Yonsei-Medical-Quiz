@@ -25,7 +25,7 @@ def normalize_text(text):
     if pd.isna(text): return ""
     # 괄호 안의 내용도 정답으로 인정하기 위해 미리 처리할 수 있게 원본도 유지하되,
     # 기본적으로는 특수문자 제거 버전 반환
-    res = str(text).replace(" ", "").replace("-", "").replace("/", "").lower()
+    res = str(text).replace(" ", "").replace(",", "").replace("-", "").replace("/", "").lower()
     return res
 
 
@@ -132,10 +132,9 @@ with streamlit_analytics.track():
         st.markdown("### 🕒 업데이트 내역")
         st.info("""
         **v1.1.4 (최신)**
-        - 채점 로직 강화 (-, / 기호 무시)
+        - 채점 로직 강화 (- , / 기호 무시)
         - 괄호 안 동의어 정답 인정
         - 오답 리스트 '내 답변' 표시
-
         **v1.1.3**
         - 분석용 대시보드 연동
         - 문제 무작위 셔플 보강
