@@ -13,7 +13,7 @@ import re
 # Copyright (c) 2026 Inho Jung (windy9478-coder). All rights reserved.
 # ==========================================================
 
-CURRENT_VERSION = "v1.1.6"  # 엔터키 우선순위 수정
+CURRENT_VERSION = "v1.1.7"  # 엔터키 우선순위 완전 해결
 
 # 1. 페이지 설정
 st.set_page_config(page_title="연세 간호 의학용어 테스트", page_icon="🩺", layout="centered")
@@ -27,9 +27,7 @@ def check_answer(user_ans, correct_ans):
     u, c = normalize_text(user_ans), normalize_text(correct_ans)
     if u == c: return True
     if "(" in str(correct_ans):
-        # 괄호 밖 내용 (단주친목)
         base = normalize_text(re.sub(r'\(.*\)', '', str(correct_ans)))
-        # 괄호 안 내용 (단주자조모임)
         inner_search = re.search(r'\((.*)\)', str(correct_ans))
         inner = normalize_text(inner_search.group(1)) if inner_search else ""
         if u == base or u == inner: return True
@@ -75,7 +73,7 @@ with streamlit_analytics.track():
 
         if not st.session_state.auth_success:
             pw = st.text_input("보안코드", type="password")
-            if st.button("인증"):
+            if st.button("인증하기"):
                 if pw == "yonseinursing":
                     st.session_state.auth_success = True
                     st.rerun()
@@ -92,7 +90,7 @@ with streamlit_analytics.track():
         st.markdown("### 🕒 업데이트 내역")
         st.info(f"""
         **{CURRENT_VERSION} (최신)**
-        - 엔터키 입력 시 '정답 제출' 우선 적용
+        - 엔터키 버그 완전 수정 (폼 외부 버튼 분리)
         - 누적 학습 모드 (푼 문제 제외)
         - 이전 문제로 돌아가기 기능
         - 채점 로직 강화 (기호 무시/괄호 인정)
@@ -153,24 +151,28 @@ with streamlit_analytics.track():
         prev_f = st.session_state.user_responses.get(f"f_{idx}", "")
         prev_m = st.session_state.user_responses.get(f"m_{idx}", "")
 
+        # ⭐ 해결책: 폼 안에는 '정답 제출' 버튼만 둡니다 (엔터키 독점)
         with st.form(key=f'q_{idx}', clear_on_submit=False):
-            ans_f, ans_m = None, None
             if "유형 1" in mode:
                 ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
                 ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_in_{idx}")
-            elif "유형 2" in mode: ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_in_{idx}")
-            else: ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
+            elif "유형 2" in mode: 
+                ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_in_{idx}")
+                ans_f = None
+            else: 
+                ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
+                ans_m = None
             
-            col1, col2 = st.columns(2)
-            # ⭐ 핵심: submitted(제출)를 back(이전)보다 먼저 선언하여 엔터키 우선권을 줍니다.
-            submitted = col2.form_submit_button("정답 제출 (Enter) ➡️")
-            back = col1.form_submit_button("⬅️ 이전 문제")
+            submitted = st.form_submit_button("정답 제출 (Enter) ➡️", use_container_width=True)
 
-        if back:
-            if idx > 0:
-                st.session_state.current_index -= 1
-                st.rerun()
-            else: st.warning("첫 번째 문제입니다.")
+        # ⭐ 해결책: '이전 문제' 버튼을 폼 외부(아래)에 배치하여 엔터키 간섭 차단
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:
+            if st.button("⬅️ 이전 문제"):
+                if idx > 0:
+                    st.session_state.current_index -= 1
+                    st.rerun()
+                else: st.warning("첫 번째 문제입니다.")
 
         if submitted:
             st.session_state.user_responses[f"f_{idx}"] = ans_f if ans_f else ""
