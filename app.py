@@ -13,10 +13,12 @@ import re
 # Copyright (c) 2026 Inho Jung (windy9478-coder). All rights reserved.
 # ==========================================================
 
-CURRENT_VERSION = "v1.1.5"
+CURRENT_VERSION = "v1.1.6"  # 엔터키 우선순위 수정
 
+# 1. 페이지 설정
 st.set_page_config(page_title="연세 간호 의학용어 테스트", page_icon="🩺", layout="centered")
 
+# --- 유틸리티 함수: 채점 로직 강화 ---
 def normalize_text(text):
     if pd.isna(text): return ""
     return str(text).replace(" ", "").replace("-", "").replace("/", "").lower()
@@ -25,11 +27,15 @@ def check_answer(user_ans, correct_ans):
     u, c = normalize_text(user_ans), normalize_text(correct_ans)
     if u == c: return True
     if "(" in str(correct_ans):
+        # 괄호 밖 내용 (단주친목)
         base = normalize_text(re.sub(r'\(.*\)', '', str(correct_ans)))
-        inner = normalize_text(re.search(r'\((.*)\)', str(correct_ans)).group(1)) if re.search(r'\((.*)\)', str(correct_ans)) else ""
+        # 괄호 안 내용 (단주자조모임)
+        inner_search = re.search(r'\((.*)\)', str(correct_ans))
+        inner = normalize_text(inner_search.group(1)) if inner_search else ""
         if u == base or u == inner: return True
     return False
 
+# 2. 분석 트래킹 시작
 with streamlit_analytics.track():
     st.markdown("""
     <style>
@@ -48,6 +54,7 @@ with streamlit_analytics.track():
     </style>
     """, unsafe_allow_html=True)
 
+    # 3. 세션 상태 초기화
     states = {
         'auth_success': False, 'master_pool': None, 'quiz_data': None, 
         'current_index': 0, 'score': 0, 'wrong_answers': [], 
@@ -59,21 +66,20 @@ with streamlit_analytics.track():
         if key not in st.session_state:
             st.session_state[key] = value
 
+    # 4. 사이드바 로직
     with st.sidebar:
         try:
             st.image(Image.open("기본형_심볼-03.jpg"), use_container_width=True)
         except:
             st.markdown("### 🏛️ YONSEI NURSING")
 
-        # --- 수정된 인증 로직 ---
         if not st.session_state.auth_success:
             pw = st.text_input("보안코드", type="password")
             if st.button("인증"):
                 if pw == "yonseinursing":
                     st.session_state.auth_success = True
                     st.rerun()
-                else:
-                    st.error("보안코드가 틀렸습니다.")
+                else: st.error("보안코드가 틀렸습니다.")
         else:
             st.success("✅ 인증 완료")
             if st.button("로그아웃"):
@@ -82,6 +88,16 @@ with streamlit_analytics.track():
 
         st.markdown("---")
         st.markdown(f"**Version:** {CURRENT_VERSION}\n**Dev:** 정인호\n© 2026 Inho Jung.")
+        
+        st.markdown("### 🕒 업데이트 내역")
+        st.info(f"""
+        **{CURRENT_VERSION} (최신)**
+        - 엔터키 입력 시 '정답 제출' 우선 적용
+        - 누적 학습 모드 (푼 문제 제외)
+        - 이전 문제로 돌아가기 기능
+        - 채점 로직 강화 (기호 무시/괄호 인정)
+        - 오답 상세 내역 표시
+        """)
 
     st.markdown("<div class='intro-box'><h1 style='color: #FFD700;'>🩺 의학용어 테스트</h1><p>연세대학교 간호학과 스마트 테스트 솔루션</p></div>", unsafe_allow_html=True)
     st.markdown("---")
@@ -120,7 +136,8 @@ with streamlit_analytics.track():
                     st.session_state.master_pool = pool.drop(st.session_state.quiz_data.index)
                     st.session_state.quiz_data = st.session_state.quiz_data.reset_index(drop=True)
                     st.session_state.quiz_mode, st.session_state.quiz_started = mode, True
-                    st.session_state.user_responses = {}
+                    st.session_state.user_responses, st.session_state.current_index, st.session_state.score = {}, 0, 0
+                    st.session_state.wrong_answers = []
                     st.rerun()
 
     # 7. 퀴즈 진행
@@ -145,8 +162,9 @@ with streamlit_analytics.track():
             else: ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
             
             col1, col2 = st.columns(2)
-            with col2: submitted = st.form_submit_button("정답 제출 (Enter) ➡️")
-            with col1: back = st.form_submit_button("⬅️ 이전 문제")
+            # ⭐ 핵심: submitted(제출)를 back(이전)보다 먼저 선언하여 엔터키 우선권을 줍니다.
+            submitted = col2.form_submit_button("정답 제출 (Enter) ➡️")
+            back = col1.form_submit_button("⬅️ 이전 문제")
 
         if back:
             if idx > 0:
@@ -155,8 +173,8 @@ with streamlit_analytics.track():
             else: st.warning("첫 번째 문제입니다.")
 
         if submitted:
-            if ans_f: st.session_state.user_responses[f"f_{idx}"] = ans_f
-            if ans_m: st.session_state.user_responses[f"m_{idx}"] = ans_m
+            st.session_state.user_responses[f"f_{idx}"] = ans_f if ans_f else ""
+            st.session_state.user_responses[f"m_{idx}"] = ans_m if ans_m else ""
             
             correct_f, correct_m = df.iloc[idx, 1], df.iloc[idx, 2]
             res_f = check_answer(ans_f, correct_f) if ans_f is not None else True
@@ -184,9 +202,10 @@ with streamlit_analytics.track():
     elif st.session_state.quiz_finished:
         st.subheader("📊 테스트 결과")
         score, total = st.session_state.score, len(st.session_state.quiz_data)
-        st.metric("최종 점수", f"{score} / {total}")
+        st.metric("최종 점수", f"{score} / {total}", f"{(score/total)*100:.1f} 점")
         
         if st.session_state.wrong_answers:
+            st.markdown("### ❌ 오답 리스트")
             st.table(pd.DataFrame(st.session_state.wrong_answers))
             if st.button("🔄 오답만 다시 풀기"):
                 wrong_list = [[w['문제'], w['정답(영)'], w['정답(한)']] for w in st.session_state.wrong_answers]
