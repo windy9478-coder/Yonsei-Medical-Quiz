@@ -13,12 +13,10 @@ import re
 # Copyright (c) 2026 Inho Jung (windy9478-coder). All rights reserved.
 # ==========================================================
 
-CURRENT_VERSION = "v1.1.5"  # 누적 학습 모드 및 이전 문제 이동 추가
+CURRENT_VERSION = "v1.1.5"
 
-# 1. 페이지 설정
 st.set_page_config(page_title="연세 간호 의학용어 테스트", page_icon="🩺", layout="centered")
 
-# --- 유틸리티 함수: 채점 로직 강화 ---
 def normalize_text(text):
     if pd.isna(text): return ""
     return str(text).replace(" ", "").replace("-", "").replace("/", "").lower()
@@ -32,7 +30,6 @@ def check_answer(user_ans, correct_ans):
         if u == base or u == inner: return True
     return False
 
-# 2. 분석 트래킹 시작
 with streamlit_analytics.track():
     st.markdown("""
     <style>
@@ -43,12 +40,6 @@ with streamlit_analytics.track():
         border: 2px solid #FFD700; font-weight: bold; width: 100%;
     }
     .stButton>button:hover { background-color: #FFD700; color: #003876; }
-    @media (prefers-color-scheme: dark) {
-        .stTextInput>div>div>input { color: black !important; background-color: white !important; }
-    }
-    @media (prefers-color-scheme: light) {
-        .stTextInput>div>div>input { color: white !important; background-color: #003876 !important; }
-    }
     .intro-box { text-align: center; margin-bottom: 30px; }
     .dev-badge {
         background-color: rgba(255, 215, 0, 0.15); padding: 12px;
@@ -57,31 +48,32 @@ with streamlit_analytics.track():
     </style>
     """, unsafe_allow_html=True)
 
-    # 3. 세션 상태 초기화 (누적 학습용 master_pool 추가)
     states = {
         'auth_success': False, 'master_pool': None, 'quiz_data': None, 
         'current_index': 0, 'score': 0, 'wrong_answers': [], 
         'quiz_started': False, 'quiz_finished': False, 
         'quiz_mode': "유형 1: 약어 → Full Term + 뜻",
-        'user_responses': {} # 이전 문제로 돌아갔을 때 입력값 복구용
+        'user_responses': {}
     }
     for key, value in states.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
-    # 4. 사이드바 로직
     with st.sidebar:
         try:
             st.image(Image.open("기본형_심볼-03.jpg"), use_container_width=True)
         except:
             st.markdown("### 🏛️ YONSEI NURSING")
 
+        # --- 수정된 인증 로직 ---
         if not st.session_state.auth_success:
             pw = st.text_input("보안코드", type="password")
             if st.button("인증"):
                 if pw == "yonseinursing":
-                    st.session_state.auth_success, st.rerun()
-                else: st.error("오답")
+                    st.session_state.auth_success = True
+                    st.rerun()
+                else:
+                    st.error("보안코드가 틀렸습니다.")
         else:
             st.success("✅ 인증 완료")
             if st.button("로그아웃"):
@@ -90,18 +82,7 @@ with streamlit_analytics.track():
 
         st.markdown("---")
         st.markdown(f"**Version:** {CURRENT_VERSION}\n**Dev:** 정인호\n© 2026 Inho Jung.")
-        
-        st.markdown("### 🕒 업데이트 내역")
-        st.info("""
-        **v1.1.5 (NEW)**
-        - 누적 학습 모드 (푼 문제 제외 기능)
-        - 이전 문제로 돌아가기 기능 추가
-        
-        **v1.1.4**
-        - 채점 로직 강화 및 오답 상세화
-        """)
 
-    # 5. 메인 안내
     st.markdown("<div class='intro-box'><h1 style='color: #FFD700;'>🩺 의학용어 테스트</h1><p>연세대학교 간호학과 스마트 테스트 솔루션</p></div>", unsafe_allow_html=True)
     st.markdown("---")
 
@@ -123,10 +104,10 @@ with streamlit_analytics.track():
                 st.session_state.master_pool = df
             
             pool = st.session_state.master_pool
-            st.success(f"✅ 전체 {len(pool)}개 중 현재 학습 가능: {len(pool)}개")
+            st.success(f"✅ 현재 학습 가능: {len(pool)}개")
             
             if len(pool) == 0:
-                st.warning("모든 문제를 다 풀었습니다! 초기화하려면 아래 버튼을 누르세요.")
+                st.warning("모든 문제를 다 풀었습니다!")
                 if st.button("전체 문제 초기화"):
                     st.session_state.master_pool = None
                     st.rerun()
@@ -135,54 +116,45 @@ with streamlit_analytics.track():
                 q_count = st.number_input("문제 수:", 1, len(pool), min(20, len(pool)))
 
                 if st.button("퀴즈 시작하기! 🚀"):
-                    # 현재 풀에서 문제 선택
                     st.session_state.quiz_data = pool.sample(n=q_count)
-                    # 전체 풀에서 선택된 문제 제거 (누적 학습 핵심)
                     st.session_state.master_pool = pool.drop(st.session_state.quiz_data.index)
-                    
                     st.session_state.quiz_data = st.session_state.quiz_data.reset_index(drop=True)
                     st.session_state.quiz_mode, st.session_state.quiz_started = mode, True
-                    st.session_state.user_responses = {} # 초기화
+                    st.session_state.user_responses = {}
                     st.rerun()
 
     # 7. 퀴즈 진행
     elif st.session_state.quiz_started and not st.session_state.quiz_finished:
         df, idx = st.session_state.quiz_data, st.session_state.current_index
         mode, total = st.session_state.quiz_mode, len(df)
-        
         st.markdown(f"### {mode} ({idx + 1} / {total})")
         st.progress((idx + 1) / total)
 
         q_text = df.iloc[idx, 0] if "유형 1" in mode else (df.iloc[idx, 1] if "유형 2" in mode else df.iloc[idx, 2])
         st.markdown(f"<h1 style='text-align: center; color: #FFD700;'>{q_text}</h1>", unsafe_allow_html=True)
 
-        # 이전 답변 불러오기
         prev_f = st.session_state.user_responses.get(f"f_{idx}", "")
         prev_m = st.session_state.user_responses.get(f"m_{idx}", "")
 
         with st.form(key=f'q_{idx}', clear_on_submit=False):
             ans_f, ans_m = None, None
             if "유형 1" in mode:
-                ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_input_{idx}")
-                ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_input_{idx}")
-            elif "유형 2" in mode: ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_input_{idx}")
-            else: ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_input_{idx}")
+                ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
+                ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_in_{idx}")
+            elif "유형 2" in mode: ans_m = st.text_input("한글 뜻", value=prev_m, key=f"m_in_{idx}")
+            else: ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
             
             col1, col2 = st.columns(2)
-            with col1:
-                # 폼 안에서 이전 문제로 가기 (단순 세션 조작)
-                back_clicked = st.form_submit_button("⬅️ 이전 문제")
-            with col2:
-                submitted = st.form_submit_button("정답 제출 (Enter) ➡️")
+            with col1: back = st.form_submit_button("⬅️ 이전 문제")
+            with col2: submitted = st.form_submit_button("정답 제출 (Enter) ➡️")
 
-        if back_clicked:
+        if back:
             if idx > 0:
                 st.session_state.current_index -= 1
                 st.rerun()
             else: st.warning("첫 번째 문제입니다.")
 
         if submitted:
-            # 입력값 저장
             if ans_f: st.session_state.user_responses[f"f_{idx}"] = ans_f
             if ans_m: st.session_state.user_responses[f"m_{idx}"] = ans_m
             
@@ -226,7 +198,6 @@ with streamlit_analytics.track():
                 st.rerun()
 
         if st.button("🏠 다음 세트 풀러 가기"):
-            # 퀴즈 상태만 초기화하고 master_pool(남은 문제)은 유지
             for key in ['quiz_data', 'current_index', 'score', 'wrong_answers', 'quiz_started', 'quiz_finished', 'user_responses']:
                 st.session_state[key] = states[key]
             st.rerun()
