@@ -145,8 +145,8 @@ with streamlit_analytics.track():
             else: ans_f = st.text_input("Full Term (영어)", value=prev_f, key=f"f_in_{idx}")
             
             col1, col2 = st.columns(2)
-            with col1: back = st.form_submit_button("⬅️ 이전 문제")
             with col2: submitted = st.form_submit_button("정답 제출 (Enter) ➡️")
+            with col1: back = st.form_submit_button("⬅️ 이전 문제")
 
         if back:
             if idx > 0:
